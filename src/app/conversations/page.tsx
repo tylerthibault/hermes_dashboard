@@ -148,8 +148,10 @@ export default function Home() {
     source.addEventListener("run.event", (rawEvent) => {
       try {
         const parsed = JSON.parse((rawEvent as MessageEvent).data) as AgentEvent;
-        appendEvent(conversationId, parsed);
 
+        // Handle streaming deltas and final assistant message in-place and
+        // avoid adding them to the visible events timeline so the UI doesn't
+        // expose internal streaming chunks.
         if (parsed.type === "agent.message.delta") {
           const chunk = typeof parsed.payload.content === "string" ? parsed.payload.content : "";
           const currentStreamMessageId = streamedMessageIdByRunRef.current[runId] ?? streamMessageId;
@@ -161,6 +163,9 @@ export default function Home() {
                 : message,
             ),
           }));
+
+          // Do not append the delta event to events timeline
+          return;
         }
 
         if (parsed.type === "agent.message.done") {
@@ -181,7 +186,13 @@ export default function Home() {
             ),
           }));
           streamedMessageIdByRunRef.current[runId] = messageId;
+
+          // Do not append the done event to events timeline
+          return;
         }
+
+        // For all other event types, append to the events timeline so they are visible
+        appendEvent(conversationId, parsed);
 
         if (parsed.type === "approval.required") {
           patchAgentLocal(agentId, {
