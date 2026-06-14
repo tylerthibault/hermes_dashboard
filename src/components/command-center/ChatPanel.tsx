@@ -40,7 +40,7 @@ export function ChatPanel({
 
   return (
     <section className="hud-panel flex h-full flex-col rounded-2xl border border-white/10 bg-graphite-900/65 p-3 backdrop-blur-xl">
-      <header className="hud-panel rounded-xl border border-white/10 bg-black/20 p-3">
+      <header className="hud-panel shrink-0 rounded-xl border border-white/10 bg-black/20 p-3">
         <p className="hud-title text-[11px] text-cyan-200">Selected Agent</p>
         <div className="mt-1 flex items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-ink-100">{agent.name}</h2>
@@ -67,7 +67,7 @@ export function ChatPanel({
         </div>
       </header>
 
-      <div className="hud-panel mt-3 flex-1 space-y-2 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-3">
+      <div className="hud-panel mt-3 min-h-0 flex-1 space-y-2 overflow-y-auto rounded-xl border border-white/10 bg-black/20 p-3">
         {timeline.length > 0 ? (
           timeline.map((item) => {
             if (item.kind === "message") {

@@ -19,7 +19,7 @@ export function MessageInput({ onSubmit, disabled }: MessageInputProps) {
   };
 
   return (
-    <form onSubmit={handleSubmit} className="mt-3 border-t border-white/10 pt-3">
+    <form onSubmit={handleSubmit} className="mt-3 shrink-0 border-t border-white/10 pt-3">
       <div className="hud-panel rounded-2xl border border-white/15 bg-black/25 p-2">
         <textarea
           value={value}

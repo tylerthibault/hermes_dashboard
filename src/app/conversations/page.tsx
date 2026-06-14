@@ -671,7 +671,7 @@ export default function Home() {
         <MainNavSidebar />
       }
       centerPanel={
-        <div className="grid h-full gap-3 xl:grid-cols-[300px_minmax(0,1fr)]">
+        <div className="grid min-h-0 flex-1 grid-rows-[minmax(0,1fr)] gap-3 xl:grid-cols-[300px_minmax(0,1fr)]">
           <div className="hidden xl:block">
             <AgentSidebar
               agents={agents}
@@ -680,7 +680,7 @@ export default function Home() {
             />
           </div>
 
-          <div className="flex h-full flex-col gap-2">
+          <div className="flex h-full min-h-0 flex-col gap-2">
             <div className="xl:hidden">
               <AgentSidebar
                 agents={agents}

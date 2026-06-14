@@ -20,10 +20,17 @@
   --font-mono: var(--font-mono);
 }
 
+html, body, #__next, main {
+  height: 100vh;
+  max-height: 100vh;
+}
+
 body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), sans-serif;
+  min-height: 100vh;
+  margin: 0;
 }
 
 .bg-grid-overlay {
