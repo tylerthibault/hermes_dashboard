@@ -1,13 +1,25 @@
 import { NeuralLoadCard } from "./NeuralLoadCard";
 import { SystemStatusPanel } from "./SystemStatusPanel";
 
-type DashboardCenterPanelProps = {
-  totalQueries: string;
-  agentEfficiency: string;
-  systemUptime: string;
-  securityScans: string;
-  telemetry?: any;
+type Telemetry = {
+  host?: { uptimeSeconds?: number; loadavg?: number[] };
+  cpu?: { cpuCount?: number };
+  memory?: { totalBytes?: number; usedBytes?: number };
+  disks?: Array<{ mount: string; usePercent: string }>;
+  topProcesses?: Array<{ command: string; cpu: number }>;
 };
+
+type DashboardCenterPanelProps = {
+  telemetry?: Telemetry | null;
+};
+
+function formatUptime(seconds?: number) {
+  if (!seconds) return "-";
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  return d > 0 ? `${d}d ${h}h ${m}m` : `${h}h ${m}m`;
+}
 
 function MetricCard({ label, value, accent }: { label: string; value: string; accent?: "cyan" | "blue" | "green" }) {
   const tone =
@@ -25,26 +37,44 @@ function MetricCard({ label, value, accent }: { label: string; value: string; ac
   );
 }
 
-export function DashboardCenterPanel({
-  totalQueries,
-  agentEfficiency,
-  systemUptime,
-  securityScans,
-}: DashboardCenterPanelProps) {
+export function DashboardCenterPanel({ telemetry }: DashboardCenterPanelProps) {
+  const load = telemetry?.host?.loadavg?.[0] ?? 0;
+  const cores = telemetry?.cpu?.cpuCount ?? 1;
+  const cpuPercent = Math.min(100, Math.round((load / Math.max(cores, 1)) * 100));
+
+  const memTotal = telemetry?.memory?.totalBytes ?? 0;
+  const memUsed = telemetry?.memory?.usedBytes ?? 0;
+  const memPercent = memTotal > 0 ? Math.round((memUsed / memTotal) * 100) : 0;
+
+  const rootDisk = telemetry?.disks?.find((d) => d.mount === "/");
+  const topProc = telemetry?.topProcesses?.[0];
+
   return (
     <section className="flex h-full flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="Metric_01 / Total Queries" value={totalQueries} />
-        <MetricCard label="Metric_02 / Agent Efficiency" value={agentEfficiency} accent="blue" />
-        <MetricCard label="Metric_03 / System Uptime" value={systemUptime} accent="green" />
-        <MetricCard label="Metric_04 / Security Scans" value={securityScans} />
+        <MetricCard label="CPU Load (1m)" value={`${load.toFixed(2)} / ${cores} cores`} />
+        <MetricCard label="CPU Saturation" value={`${cpuPercent}%`} accent="blue" />
+        <MetricCard label="System Uptime" value={formatUptime(telemetry?.host?.uptimeSeconds)} accent="green" />
+        <MetricCard label="Root Disk Usage" value={rootDisk?.usePercent ?? "-"} />
       </div>
 
       <div className="grid flex-1 gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
-        <NeuralLoadCard coreA={45} coreB={30} reserve={25} />
+        <NeuralLoadCard coreA={cpuPercent} coreB={memPercent} reserve={Math.max(0, 100 - cpuPercent)} />
 
-        <SystemStatusPanel telemetry={undefined} />
+        <article className="hud-panel rounded-xl border border-cyan-300/20 bg-black/25 p-3">
+          <div className="mb-3 flex items-center justify-between">
+            <h4 className="hud-title text-[11px] text-cyan-200">Live Host Snapshot</h4>
+          </div>
+          <div className="space-y-2 font-mono text-xs text-ink-300">
+            <p>MEM: {memPercent}% used</p>
+            <p>LOAD: {telemetry?.host?.loadavg?.map((n) => n.toFixed(2)).join(", ") ?? "-"}</p>
+            <p>ROOT: {rootDisk?.usePercent ?? "-"}</p>
+            <p>TOP PROC: {topProc ? `${topProc.command} (${topProc.cpu}%)` : "-"}</p>
+          </div>
+        </article>
       </div>
+
+      <SystemStatusPanel telemetry={telemetry} />
     </section>
   );
 }

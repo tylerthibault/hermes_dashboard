@@ -18,6 +18,42 @@ type TelemetryResponse = {
     message: string;
     source: "db" | "env" | "none";
   };
+  host?: {
+    hostname?: string;
+    platform?: string;
+    release?: string;
+    arch?: string;
+    uptimeSeconds?: number;
+    loadavg?: number[];
+  };
+  cpu?: {
+    cpuCount?: number;
+    model?: string | null;
+    speedMHz?: number | null;
+  };
+  memory?: {
+    totalBytes?: number;
+    usedBytes?: number;
+    freeBytes?: number;
+    totalHuman?: string;
+    usedHuman?: string;
+  };
+  swap?: string[] | null;
+  disks?: Array<{
+    filesystem: string;
+    fstype: string;
+    size: string;
+    used: string;
+    avail: string;
+    usePercent: string;
+    mount: string;
+  }>;
+  topProcesses?: Array<{
+    pid: number;
+    command: string;
+    cpu: number;
+    mem: number;
+  }>;
 };
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
@@ -144,13 +180,7 @@ export default function DashboardHome() {
                 {uiError}
               </div>
             ) : null}
-            <DashboardCenterPanel
-              totalQueries="4.2M"
-              agentEfficiency="98.4%"
-              systemUptime="99.99%"
-              securityScans="12,450"
-              telemetry={telemetry}
-            />
+            <DashboardCenterPanel telemetry={telemetry} />
           </div>
         }
         rightSidebar={<DashboardRightPanel agents={agents} accounts={accounts} usageLimits={usageLimits} />}
