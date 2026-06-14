@@ -1,5 +1,5 @@
 [build]
-install = "npm ci --omit=dev"
+install = "npm ci"
 build = "npm run build"
 start = "npm run start"
 
