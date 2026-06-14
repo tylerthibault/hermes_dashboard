@@ -1,16 +1,8 @@
 import { NeuralLoadCard } from "./NeuralLoadCard";
 import { SystemStatusPanel } from "./SystemStatusPanel";
 
-type Telemetry = {
-  host?: { uptimeSeconds?: number; loadavg?: number[] };
-  cpu?: { cpuCount?: number };
-  memory?: { totalBytes?: number; usedBytes?: number };
-  disks?: Array<{ mount: string; usePercent: string }>;
-  topProcesses?: Array<{ command: string; cpu: number }>;
-};
-
 type DashboardCenterPanelProps = {
-  telemetry?: Telemetry | null;
+  telemetry?: any;
 };
 
 function formatUptime(seconds?: number) {
@@ -40,13 +32,14 @@ function MetricCard({ label, value, accent }: { label: string; value: string; ac
 export function DashboardCenterPanel({ telemetry }: DashboardCenterPanelProps) {
   const load = telemetry?.host?.loadavg?.[0] ?? 0;
   const cores = telemetry?.cpu?.cpuCount ?? 1;
-  const cpuPercent = Math.min(100, Math.round((load / Math.max(cores, 1)) * 100));
+  const cpuPercentFromLoad = Math.min(100, Math.round((load / Math.max(cores, 1)) * 100));
+  const cpuPercent = telemetry?.cpu?.usagePercent ?? cpuPercentFromLoad;
 
   const memTotal = telemetry?.memory?.totalBytes ?? 0;
   const memUsed = telemetry?.memory?.usedBytes ?? 0;
   const memPercent = memTotal > 0 ? Math.round((memUsed / memTotal) * 100) : 0;
 
-  const rootDisk = telemetry?.disks?.find((d) => d.mount === "/");
+  const rootDisk = telemetry?.disks?.find((d: any) => d.mount === "/");
   const topProc = telemetry?.topProcesses?.[0];
 
   return (
@@ -67,7 +60,7 @@ export function DashboardCenterPanel({ telemetry }: DashboardCenterPanelProps) {
           </div>
           <div className="space-y-2 font-mono text-xs text-ink-300">
             <p>MEM: {memPercent}% used</p>
-            <p>LOAD: {telemetry?.host?.loadavg?.map((n) => n.toFixed(2)).join(", ") ?? "-"}</p>
+            <p>LOAD: {telemetry?.host?.loadavg?.map((n: number) => n.toFixed(2)).join(", ") ?? "-"}</p>
             <p>ROOT: {rootDisk?.usePercent ?? "-"}</p>
             <p>TOP PROC: {topProc ? `${topProc.command} (${topProc.cpu}%)` : "-"}</p>
           </div>

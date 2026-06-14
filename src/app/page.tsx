@@ -30,15 +30,28 @@ type TelemetryResponse = {
     cpuCount?: number;
     model?: string | null;
     speedMHz?: number | null;
+    usagePercent?: number | null;
   };
   memory?: {
     totalBytes?: number;
     usedBytes?: number;
     freeBytes?: number;
+    availableBytes?: number;
+    sharedBytes?: number;
+    buffersCacheBytes?: number;
     totalHuman?: string;
     usedHuman?: string;
+    freeHuman?: string;
+    availableHuman?: string;
   };
-  swap?: string[] | null;
+  swap?: {
+    totalBytes?: number;
+    usedBytes?: number;
+    freeBytes?: number;
+    totalHuman?: string;
+    usedHuman?: string;
+    freeHuman?: string;
+  } | null;
   disks?: Array<{
     filesystem: string;
     fstype: string;
@@ -53,6 +66,20 @@ type TelemetryResponse = {
     command: string;
     cpu: number;
     mem: number;
+  }>;
+  processCount?: number | null;
+  inodeUsage?: Array<{
+    filesystem: string;
+    inodesTotal: string;
+    inodesUsed: string;
+    inodesAvail: string;
+    inodeUsePercent: string;
+    mount: string;
+  }>;
+  network?: Array<{
+    iface: string;
+    rxBytes: number;
+    txBytes: number;
   }>;
 };
 
