@@ -60,15 +60,35 @@ async function getConnectorConfig(): Promise<ConnectorConfig> {
   const envToken = process.env.HERMES_CONNECTOR_TOKEN?.trim();
   const finalToken = dbToken || envToken;
 
+  // Backwards-compatible fallback: if no connector URL is configured, allow
+  // the dashboard to talk to a Hermes API-compatible endpoint provided by
+  // environment variables. This makes it easy to point the UI at a
+  // running Hermes instance (or any assistant-compatible API) without
+  // storing settings in the database.
+  const apiBaseUrl = normalizeUrl(process.env.HERMES_API_BASE_URL);
+  const apiKey = process.env.HERMES_API_KEY?.trim();
+
   const timeoutMs = dbUrl
     ? parseTimeout(stored.timeoutMs, parseTimeout(process.env.HERMES_CONNECTOR_TIMEOUT_MS, 15000))
     : parseTimeout(process.env.HERMES_CONNECTOR_TIMEOUT_MS, 15000);
 
+  // If no explicit connector URL is present, prefer the API_BASE fallback.
+  const resolvedUrl = finalUrl || apiBaseUrl;
+  const resolvedToken = finalToken || apiKey;
+
+  const source: ConnectorConfig["source"] = resolvedUrl
+    ? dbUrl
+      ? "db"
+      : envUrl
+      ? "env"
+      : "env"
+    : "none";
+
   return {
-    url: finalUrl,
-    token: finalToken,
+    url: resolvedUrl,
+    token: resolvedToken,
     timeoutMs,
-    source: finalUrl ? (dbUrl ? "db" : "env") : "none",
+    source,
   };
 }
 
