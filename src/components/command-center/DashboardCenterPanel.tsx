@@ -1,4 +1,5 @@
 import { NeuralLoadCard } from "./NeuralLoadCard";
+import { SystemStatusPanel } from "./SystemStatusPanel";
 
 type DashboardCenterPanelProps = {
   totalQueries: string;
@@ -41,20 +42,7 @@ export function DashboardCenterPanel({
       <div className="grid flex-1 gap-3 xl:grid-cols-[minmax(0,2fr)_minmax(280px,1fr)]">
         <NeuralLoadCard coreA={45} coreB={30} reserve={25} />
 
-        <article className="hud-panel rounded-xl border border-cyan-300/20 bg-black/25 p-3">
-          <div className="mb-3 flex items-center justify-between">
-            <h4 className="hud-title text-[11px] text-cyan-200">Live Stream</h4>
-            <span className="font-mono text-[10px] text-cyan-300/70">T+04:22</span>
-          </div>
-          <div className="space-y-2 font-mono text-xs text-ink-300">
-            <p>[10:42:01] NODE: Flux stabilized at 0.94.</p>
-            <p>[10:42:04] SYS: Auto-correcting vector 7.</p>
-            <p>[10:42:09] DATA: Ingested 45MB payload.</p>
-            <p>[10:42:12] AGENT_CORE: Awaiting instruction.</p>
-            <p>[10:42:18] SYNC: Heartbeat confirmed.</p>
-            <p>[10:42:22] SYS: Allocating thread 4A.</p>
-          </div>
-        </article>
+        <SystemStatusPanel telemetry={undefined} />
       </div>
     </section>
   );
