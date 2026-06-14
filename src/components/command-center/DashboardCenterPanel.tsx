@@ -45,7 +45,7 @@ export function DashboardCenterPanel({ telemetry }: DashboardCenterPanelProps) {
   return (
     <section className="flex h-full flex-col gap-3">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <MetricCard label="CPU Load (1m)" value={`${load.toFixed(2)} / ${cores} cores`} />
+        <MetricCard label="CPU Load (1m)" value={`${load.toFixed(2)} / ${cores} logical CPUs`} />
         <MetricCard label="CPU Saturation" value={`${cpuPercent}%`} accent="blue" />
         <MetricCard label="System Uptime" value={formatUptime(telemetry?.host?.uptimeSeconds)} accent="green" />
         <MetricCard label="Root Disk Usage" value={rootDisk?.usePercent ?? "-"} />

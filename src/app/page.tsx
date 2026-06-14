@@ -28,8 +28,15 @@ type TelemetryResponse = {
   };
   cpu?: {
     cpuCount?: number;
+    logicalCpuCount?: number;
+    physicalCoreCount?: number | null;
+    sockets?: number | null;
+    coresPerSocket?: number | null;
+    threadsPerCore?: number | null;
+    onlineCpuList?: string | null;
     model?: string | null;
     speedMHz?: number | null;
+    maxMHz?: number | null;
     usagePercent?: number | null;
   };
   memory?: {
@@ -81,6 +88,17 @@ type TelemetryResponse = {
     rxBytes: number;
     txBytes: number;
   }>;
+  networkInterfaces?: Array<{
+    iface: string;
+    family: string;
+    address: string;
+    internal: boolean;
+  }>;
+  ping?: {
+    gatewayMs: number | null;
+    internetMs: number | null;
+  };
+  defaultGateway?: string | null;
 };
 
 async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {

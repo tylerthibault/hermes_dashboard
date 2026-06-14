@@ -4,6 +4,17 @@ import { getConnectorSettingsForUI, testConnectorHealth } from "@/lib/hermesConn
 import os from "os";
 import { execSync } from "child_process";
 
+type CpuTopology = {
+  logicalCpuCount: number | null;
+  onlineCpuList: string | null;
+  threadsPerCore: number | null;
+  coresPerSocket: number | null;
+  sockets: number | null;
+  physicalCoreCount: number | null;
+  modelName: string | null;
+  maxMHz: number | null;
+};
+
 function safeExec(cmd: string) {
   try {
     return execSync(cmd, { encoding: "utf8", stdio: ["pipe", "pipe", "ignore"] }).trim();
@@ -129,6 +140,68 @@ function parseNetwork() {
     .filter(Boolean);
 }
 
+function parseLscpu(): CpuTopology {
+  const out = safeExec("lscpu");
+  const map: Record<string, string> = {};
+  for (const line of out.split(/\r?\n/)) {
+    const idx = line.indexOf(":");
+    if (idx === -1) continue;
+    const key = line.slice(0, idx).trim();
+    const value = line.slice(idx + 1).trim();
+    if (key) map[key] = value;
+  }
+
+  const logicalCpuCount = Number.parseInt(map["CPU(s)"] ?? "", 10);
+  const threadsPerCore = Number.parseInt(map["Thread(s) per core"] ?? "", 10);
+  const coresPerSocket = Number.parseInt(map["Core(s) per socket"] ?? "", 10);
+  const sockets = Number.parseInt(map["Socket(s)"] ?? "", 10);
+  const maxMHz = Number.parseFloat(map["CPU max MHz"] ?? "");
+
+  const physicalCoreCount =
+    Number.isFinite(coresPerSocket) && Number.isFinite(sockets) && coresPerSocket > 0 && sockets > 0
+      ? coresPerSocket * sockets
+      : null;
+
+  return {
+    logicalCpuCount: Number.isFinite(logicalCpuCount) ? logicalCpuCount : null,
+    onlineCpuList: map["On-line CPU(s) list"] ?? null,
+    threadsPerCore: Number.isFinite(threadsPerCore) ? threadsPerCore : null,
+    coresPerSocket: Number.isFinite(coresPerSocket) ? coresPerSocket : null,
+    sockets: Number.isFinite(sockets) ? sockets : null,
+    physicalCoreCount,
+    modelName: map["Model name"] ?? null,
+    maxMHz: Number.isFinite(maxMHz) ? maxMHz : null,
+  };
+}
+
+function parseNetworkInterfaces() {
+  const nics = os.networkInterfaces() as Record<string, Array<{ family: string | number; address: string; internal: boolean }> | undefined>;
+  const rows: Array<{ iface: string; family: string; address: string; internal: boolean }> = [];
+  for (const [iface, addrs] of Object.entries(nics)) {
+    for (const addr of addrs ?? []) {
+      rows.push({
+        iface,
+        family: typeof addr.family === "string" ? addr.family : String(addr.family),
+        address: addr.address,
+        internal: addr.internal,
+      });
+    }
+  }
+  return rows;
+}
+
+function pingMs(host: string) {
+  const raw = safeExec(`ping -c 1 -W 1 ${host} | awk -F'time=' '/time=/{print $2}' | awk '{print $1}'`);
+  if (!raw) return null;
+  const v = Number.parseFloat(raw.replace(",", "."));
+  return Number.isFinite(v) ? v : null;
+}
+
+function parseDefaultGateway() {
+  const out = safeExec("ip route | awk '/default/ {print $3; exit}'");
+  return out || null;
+}
+
 function bytesToHuman(bytes: number) {
   if (!bytes) return "0B";
   const units = ["B", "KB", "MB", "GB", "TB"];
@@ -169,6 +242,7 @@ export async function GET() {
   const uptimeSeconds = Math.floor(os.uptime());
   const loadavg = os.loadavg();
   const cpus = os.cpus();
+  const cpuTopology = parseLscpu();
 
   const meminfo = parseMeminfo();
   const cpuUsagePercent = parseCpuUsagePercent();
@@ -177,6 +251,12 @@ export async function GET() {
   const inodeUsage = parseInodes();
   const procs = topProcs(8);
   const network = parseNetwork();
+  const networkInterfaces = parseNetworkInterfaces();
+  const defaultGateway = parseDefaultGateway();
+  const ping = {
+    gatewayMs: defaultGateway ? pingMs(defaultGateway) : null,
+    internetMs: pingMs("1.1.1.1"),
+  };
 
   return NextResponse.json({
     checkedAt,
@@ -191,9 +271,16 @@ export async function GET() {
       loadavg,
     },
     cpu: {
-      cpuCount: cpus.length,
-      model: cpus.length ? cpus[0].model : null,
+      cpuCount: cpuTopology.logicalCpuCount ?? cpus.length,
+      logicalCpuCount: cpuTopology.logicalCpuCount ?? cpus.length,
+      physicalCoreCount: cpuTopology.physicalCoreCount,
+      sockets: cpuTopology.sockets,
+      coresPerSocket: cpuTopology.coresPerSocket,
+      threadsPerCore: cpuTopology.threadsPerCore,
+      onlineCpuList: cpuTopology.onlineCpuList,
+      model: cpuTopology.modelName ?? (cpus.length ? cpus[0].model : null),
       speedMHz: cpus.length ? cpus[0].speed : null,
+      maxMHz: cpuTopology.maxMHz,
       usagePercent: cpuUsagePercent,
     },
     memory: {
@@ -214,5 +301,8 @@ export async function GET() {
     inodeUsage,
     topProcesses: procs,
     network,
+    networkInterfaces,
+    ping,
+    defaultGateway,
   });
 }

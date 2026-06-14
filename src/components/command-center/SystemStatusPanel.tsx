@@ -42,8 +42,15 @@ type Telemetry = {
   };
   cpu?: {
     cpuCount?: number;
+    logicalCpuCount?: number;
+    physicalCoreCount?: number | null;
+    sockets?: number | null;
+    coresPerSocket?: number | null;
+    threadsPerCore?: number | null;
+    onlineCpuList?: string | null;
     model?: string | null;
     speedMHz?: number | null;
+    maxMHz?: number | null;
     usagePercent?: number | null;
   };
   memory?: {
@@ -69,6 +76,9 @@ type Telemetry = {
   inodeUsage?: Inode[];
   topProcesses?: Proc[];
   network?: NetIf[];
+  networkInterfaces?: Array<{ iface: string; family: string; address: string; internal: boolean }>;
+  ping?: { gatewayMs: number | null; internetMs: number | null };
+  defaultGateway?: string | null;
 };
 
 type SystemStatusPanelProps = { telemetry?: Telemetry | null };
@@ -115,6 +125,7 @@ export function SystemStatusPanel({ telemetry }: SystemStatusPanelProps) {
   const inodes = telemetry.inodeUsage ?? [];
   const procs = telemetry.topProcesses ?? [];
   const nets = telemetry.network ?? [];
+  const interfaces = telemetry.networkInterfaces ?? [];
 
   const memUsedPct = pct(mem.usedBytes, mem.totalBytes);
   const swapUsedPct = pct(telemetry.swap?.usedBytes, telemetry.swap?.totalBytes);
@@ -131,8 +142,14 @@ export function SystemStatusPanel({ telemetry }: SystemStatusPanelProps) {
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <div>
           <p className="text-xs text-ink-500">CPU</p>
-          <p className="text-sm text-ink-300">{cpu.cpuCount ?? "-"} cores</p>
+          <p className="text-sm text-ink-300">
+            Logical: {cpu.logicalCpuCount ?? cpu.cpuCount ?? "-"} • Physical: {cpu.physicalCoreCount ?? "-"}
+          </p>
+          <p className="text-xs text-ink-500">
+            Sockets: {cpu.sockets ?? "-"} • Cores/socket: {cpu.coresPerSocket ?? "-"} • Threads/core: {cpu.threadsPerCore ?? "-"}
+          </p>
           <p className="text-xs text-ink-500">Usage: {cpu.usagePercent ?? "-"}%</p>
+          <p className="text-xs text-ink-500">Online CPUs: {cpu.onlineCpuList ?? "-"}</p>
           <p className="text-xs text-ink-500">Load: {host.loadavg?.map((n) => n.toFixed(2)).join(", ") ?? "-"}</p>
         </div>
 
@@ -142,7 +159,8 @@ export function SystemStatusPanel({ telemetry }: SystemStatusPanelProps) {
             <div style={{ width: `${memUsedPct}%` }} className="h-full bg-cyan-400" />
           </div>
           <p className="mt-1 text-xs text-ink-300">{mem.usedHuman ?? "-"} / {mem.totalHuman ?? "-"} ({memUsedPct}%)</p>
-          <p className="text-xs text-ink-500">Avail: {mem.availableHuman ?? "-"}</p>
+          <p className="text-xs text-ink-500">Free: {mem.freeHuman ?? "-"}</p>
+          <p className="text-xs text-ink-500">Available: {mem.availableHuman ?? "-"}</p>
         </div>
 
         <div>
@@ -156,9 +174,25 @@ export function SystemStatusPanel({ telemetry }: SystemStatusPanelProps) {
         <div>
           <p className="text-xs text-ink-500">Host</p>
           <p className="text-sm text-ink-300">{host.hostname ?? "-"}</p>
-          <p className="text-xs text-ink-500">{host.platform} {host.release}</p>
+          <p className="text-xs text-ink-500">{host.platform} {host.release} ({host.arch})</p>
           <p className="text-xs text-ink-500">Uptime: {fmtUptime(host.uptimeSeconds)}</p>
           <p className="text-xs text-ink-500">Processes: {telemetry.processCount ?? "-"}</p>
+          <p className="text-xs text-ink-500">Gateway: {telemetry.defaultGateway ?? "-"}</p>
+          <p className="text-xs text-ink-500">
+            Ping gateway: {telemetry.ping?.gatewayMs ?? "-"} ms • Ping internet: {telemetry.ping?.internetMs ?? "-"} ms
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <p className="hud-subtitle text-xs text-ink-500">IP Addresses</p>
+        <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3 font-mono text-xs text-ink-300">
+          {interfaces.map((intf) => (
+            <div key={`${intf.iface}-${intf.family}-${intf.address}`} className="rounded border border-white/10 px-2 py-1">
+              <div>{intf.iface} • {intf.family}</div>
+              <div className="text-ink-500">{intf.address}{intf.internal ? " (internal)" : ""}</div>
+            </div>
+          ))}
         </div>
       </div>
 
@@ -214,7 +248,7 @@ export function SystemStatusPanel({ telemetry }: SystemStatusPanelProps) {
         </div>
 
         <div>
-          <p className="hud-subtitle text-xs text-ink-500">Network Interfaces</p>
+          <p className="hud-subtitle text-xs text-ink-500">Network Interfaces (bytes)</p>
           <div className="mt-2 space-y-2 font-mono text-xs text-ink-300">
             {nets.map((n) => (
               <div key={n.iface} className="rounded border border-white/10 px-2 py-1">
