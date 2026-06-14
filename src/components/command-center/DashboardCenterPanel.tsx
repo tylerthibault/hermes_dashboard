@@ -6,6 +6,7 @@ type DashboardCenterPanelProps = {
   agentEfficiency: string;
   systemUptime: string;
   securityScans: string;
+  telemetry?: any;
 };
 
 function MetricCard({ label, value, accent }: { label: string; value: string; accent?: "cyan" | "blue" | "green" }) {
