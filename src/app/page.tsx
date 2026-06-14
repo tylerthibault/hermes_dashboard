@@ -99,7 +99,7 @@ export default function DashboardHome() {
     void pollTelemetry();
     const interval = window.setInterval(() => {
       void pollTelemetry();
-    }, 12000);
+    }, 3000);
 
     return () => {
       mounted = false;
