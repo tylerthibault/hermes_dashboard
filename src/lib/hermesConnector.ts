@@ -283,3 +283,59 @@ export async function testConnectorHealth(overrides?: {
     clearTimeout(timeout);
   }
 }
+
+// ---------------------------------------------------------------------------
+// Telemetry fetch helper
+// ---------------------------------------------------------------------------
+/**
+ * Fetch telemetry from a configured Hermes connector (/v1/telemetry).
+ * Returns an object similar to testConnectorHealth: { ok, body, elapsedMs, error }
+ */
+export async function fetchConnectorTelemetry(overrides?: { url?: string; token?: string; timeoutMs?: number }) {
+  const config = await getConnectorConfig();
+  const url = normalizeUrl(overrides?.url ?? config.url);
+  const token = overrides?.token ?? config.token;
+  const timeoutMs = parseTimeout(overrides?.timeoutMs ?? config.timeoutMs, 15000);
+
+  if (!url) {
+    return { ok: false, error: "Connector URL is not configured.", elapsedMs: 0 };
+  }
+
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const startedAt = Date.now();
+
+  try {
+    const response = await fetch(`${url}/v1/telemetry`, {
+      method: "GET",
+      headers: buildHeaders(token),
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      const details = await safeJson(response);
+      return {
+        ok: false,
+        error: `Telemetry fetch failed (${response.status})`,
+        elapsedMs: Date.now() - startedAt,
+        details,
+      };
+    }
+
+    const body = await safeJson(response);
+    return {
+      ok: true,
+      status: response.status,
+      elapsedMs: Date.now() - startedAt,
+      body,
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : "Unknown telemetry fetch error",
+      elapsedMs: Date.now() - startedAt,
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}

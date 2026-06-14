@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { ensureSeedData } from "@/lib/bootstrap";
-import { getConnectorSettingsForUI, testConnectorHealth } from "@/lib/hermesConnector";
+import { getConnectorSettingsForUI, testConnectorHealth, fetchConnectorTelemetry } from "@/lib/hermesConnector";
 import os from "os";
 import { execSync } from "child_process";
 
@@ -228,6 +228,7 @@ export async function GET() {
   };
 
   if (settings.url) {
+    // Try health first, then attempt telemetry if health passes
     const health = await testConnectorHealth();
     const status = health.ok ? "online" : "degraded";
     connectorInfo = {
@@ -236,6 +237,31 @@ export async function GET() {
       latencyMs: typeof health.elapsedMs === "number" ? health.elapsedMs : null,
       message: health.ok ? "Connector reachable" : health.error ?? "Connector unavailable",
     };
+
+    if (health.ok) {
+      const telemetryResp = await fetchConnectorTelemetry();
+      if (telemetryResp.ok && telemetryResp.body) {
+        try {
+          const body = telemetryResp.body as any;
+          // If the connector exposes its own telemetry, return it immediately
+          // so the UI can show Hermes VM metrics when the dashboard runs remotely.
+          connectorInfo.message = "Connector reachable (telemetry available)";
+
+          // Ensure the connector's payload includes basic metadata we expect
+          const out = {
+            checkedAt,
+            systemStatus: "online",
+            connector: connectorInfo,
+            // spread connector body fields (host, cpu, memory, disks, etc.)
+            ...(typeof body === "object" && body ? body : {}),
+          };
+
+          return NextResponse.json(out);
+        } catch {
+          // ignore parsing errors
+        }
+      }
+    }
   }
 
   const hostname = os.hostname();

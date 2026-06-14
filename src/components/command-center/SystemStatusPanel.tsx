@@ -6,6 +6,11 @@ type Disk = {
   avail: string;
   usePercent: string;
   mount: string;
+  // Optional IO fields (bytes since boot or sample window) exposed by Hermes connector
+  readBytes?: number;
+  writeBytes?: number;
+  readIops?: number | null;
+  writeIops?: number | null;
 };
 
 type Inode = {
@@ -210,6 +215,10 @@ export function SystemStatusPanel({ telemetry }: SystemStatusPanelProps) {
                   <div style={{ width: d.usePercent }} className="h-full bg-rose-400" />
                 </div>
                 <p className="mt-1 text-[10px] text-ink-500">Free: {d.avail}</p>
+                {/* Optional IO details from connector */}
+                {(d.readBytes || d.writeBytes) && (
+                  <p className="mt-1 text-[10px] text-ink-400">Read: {d.readBytes ? humanBytes(d.readBytes) : "-"} • Write: {d.writeBytes ? humanBytes(d.writeBytes) : "-"}</p>
+                )}
               </div>
             ))}
           </div>

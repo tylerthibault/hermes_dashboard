@@ -1,0 +1,38 @@
+{
+  "host": {
+    "hostname": "hermes-vm",
+    "platform": "linux",
+    "release": "6.8.0",
+    "arch": "x64",
+    "uptimeSeconds": 123456,
+    "loadavg": [0.12, 0.10, 0.05]
+  },
+  "cpu": {
+    "cpuCount": 4,
+    "usagePercent": 12.5
+  },
+  "memory": {
+    "totalBytes": 17179869184,
+    "usedBytes": 8589934592,
+    "freeBytes": 8589934592,
+    "totalHuman": "16.0GB",
+    "usedHuman": "8.0GB",
+    "freeHuman": "8.0GB"
+  },
+  "disks": [
+    {
+      "filesystem": "/dev/sda1",
+      "fstype": "ext4",
+      "size": "100G",
+      "used": "40G",
+      "avail": "60G",
+      "usePercent": "40%",
+      "mount": "/",
+      "readBytes": 1234567890,
+      "writeBytes": 987654321
+    }
+  ],
+  "network": [
+    { "iface": "eth0", "rxBytes": 123456789, "txBytes": 98765432 }
+  ]
+}
