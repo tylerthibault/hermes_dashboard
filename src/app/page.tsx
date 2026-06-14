@@ -1,65 +1,160 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useEffect, useState } from "react";
+import { AppShell } from "@/components/command-center/AppShell";
+import { ConnectorSettingsModal } from "@/components/command-center/ConnectorSettingsModal";
+import { DashboardCenterPanel } from "@/components/command-center/DashboardCenterPanel";
+import { DashboardRightPanel } from "@/components/command-center/DashboardRightPanel";
+import { TopBar } from "@/components/command-center/TopBar";
+import { MainNavSidebar } from "@/components/navigation/MainNavSidebar";
+import { Agent, ConnectedAccount, UsageLimit } from "@/types/hermes";
+
+type TelemetryResponse = {
+  checkedAt: string;
+  systemStatus: "online" | "degraded" | "offline";
+  connector: {
+    status: "online" | "degraded" | "offline";
+    latencyMs: number | null;
+    message: string;
+    source: "db" | "env" | "none";
+  };
+};
+
+async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(url, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...(init?.headers ?? {}),
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error(`Request failed (${response.status}) ${url}`);
+  }
+
+  return (await response.json()) as T;
+}
+
+export default function DashboardHome() {
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [accounts, setAccounts] = useState<ConnectedAccount[]>([]);
+  const [usageLimits, setUsageLimits] = useState<UsageLimit[]>([]);
+  const [telemetry, setTelemetry] = useState<TelemetryResponse | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [uiError, setUiError] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  useEffect(() => {
+    const bootstrap = async () => {
+      setIsLoading(true);
+      setUiError("");
+      try {
+        const [loadedAgents, loadedAccounts, loadedUsage] = await Promise.all([
+          fetchJson<Agent[]>("/api/agents"),
+          fetchJson<ConnectedAccount[]>("/api/accounts"),
+          fetchJson<UsageLimit[]>("/api/usage"),
+        ]);
+
+        setAgents(loadedAgents);
+        setAccounts(loadedAccounts);
+        setUsageLimits(loadedUsage);
+      } catch (error) {
+        setUiError(error instanceof Error ? error.message : "Failed to load dashboard data.");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    void bootstrap();
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const pollTelemetry = async () => {
+      try {
+        const snapshot = await fetchJson<TelemetryResponse>("/api/telemetry");
+        if (mounted) {
+          setTelemetry(snapshot);
+        }
+      } catch {
+        if (mounted) {
+          setTelemetry((current) =>
+            current ?? {
+              checkedAt: new Date().toISOString(),
+              systemStatus: "offline",
+              connector: {
+                status: "offline",
+                latencyMs: null,
+                source: "none",
+                message: "Telemetry unavailable",
+              },
+            },
+          );
+        }
+      }
+    };
+
+    void pollTelemetry();
+    const interval = window.setInterval(() => {
+      void pollTelemetry();
+    }, 12000);
+
+    return () => {
+      mounted = false;
+      window.clearInterval(interval);
+    };
+  }, []);
+
+  const githubAccount = accounts.find((account) => account.provider === "github");
+  const codexAccount = accounts.find((account) => account.provider === "codex");
+  const activeAgents = agents.filter((agent) => agent.status !== "offline").length;
+
+  if (isLoading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-obsidian text-ink-300">
+        Loading Hermes Dashboard...
+      </div>
+    );
+  }
+
   return (
-    <div className="flex flex-col flex-1 items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex flex-1 w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
+    <>
+      <AppShell
+        topBar={
+          <TopBar
+            githubAccount={githubAccount}
+            codexAccount={codexAccount}
+            systemStatus={telemetry?.systemStatus ?? "offline"}
+            activeAgents={activeAgents}
+            onOpenSettings={() => setSettingsOpen(true)}
+            connectorTelemetry={{
+              status: telemetry?.connector.status ?? "offline",
+              latencyMs: telemetry?.connector.latencyMs ?? null,
+              checkedAt: telemetry?.checkedAt,
+            }}
+          />
+        }
+        leftSidebar={<MainNavSidebar />}
+        centerPanel={
+          <div className="flex h-full flex-col gap-3">
+            {uiError ? (
+              <div className="rounded-xl border border-rose-300/30 bg-rose-500/10 px-3 py-2 text-sm text-rose-100">
+                {uiError}
+              </div>
+            ) : null}
+            <DashboardCenterPanel
+              totalQueries="4.2M"
+              agentEfficiency="98.4%"
+              systemUptime="99.99%"
+              securityScans="12,450"
             />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
-      </main>
-    </div>
+          </div>
+        }
+        rightSidebar={<DashboardRightPanel agents={agents} accounts={accounts} usageLimits={usageLimits} />}
+      />
+      <ConnectorSettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+    </>
   );
 }

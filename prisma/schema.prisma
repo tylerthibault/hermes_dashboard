@@ -1,0 +1,218 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+enum AgentStatus {
+  online
+  idle
+  running
+  waiting_for_approval
+  paused
+  error
+  offline
+}
+
+enum AgentMode {
+  chat
+  suggest
+  act
+}
+
+enum MessageRole {
+  user
+  assistant
+  system
+  tool
+}
+
+enum RunStatus {
+  queued
+  running
+  waiting_for_approval
+  paused
+  stopped
+  completed
+  failed
+}
+
+enum AgentEventType {
+  user_message
+  agent_message_delta
+  agent_message_done
+  tool_started
+  tool_output
+  tool_error
+  file_read
+  file_changed
+  command_started
+  command_completed
+  approval_required
+  approval_approved
+  approval_rejected
+  run_paused
+  run_stopped
+  run_completed
+  run_failed
+}
+
+enum ConnectedProvider {
+  github
+  openai
+  codex
+}
+
+enum ConnectedAccountStatus {
+  connected
+  disconnected
+  error
+  partial
+}
+
+enum UsageKind {
+  rate_limit
+  usage
+  credits
+  tokens
+  unknown
+}
+
+enum UsageUnit {
+  requests
+  points
+  tokens
+  credits
+  usd
+  messages
+  unknown
+}
+
+enum UsageStatus {
+  ok
+  limited
+  exhausted
+  unknown
+  unavailable
+}
+
+model Agent {
+  id               String        @id
+  name             String
+  role             String
+  description      String?
+  status           AgentStatus
+  mode             AgentMode
+  currentTask      String?
+  repo             String?
+  branch           String?
+  workingDirectory String?
+  systemPrompt     String?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  conversations Conversation[]
+  runs          Run[]
+  events        AgentEvent[]
+}
+
+model Conversation {
+  id        String   @id
+  agentId   String
+  title     String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  agent    Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  messages Message[]
+  runs     Run[]
+  events   AgentEvent[]
+
+  @@index([agentId])
+}
+
+model Run {
+  id             String    @id
+  connectorRunId String?   @unique
+  agentId        String
+  conversationId String
+  status         RunStatus
+  startedAt      DateTime  @default(now())
+  completedAt    DateTime?
+  error          String?
+
+  agent        Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  messages     Message[]
+  events       AgentEvent[]
+
+  @@index([agentId])
+  @@index([conversationId])
+}
+
+model Message {
+  id             String      @id
+  conversationId String
+  runId          String?
+  role           MessageRole
+  content        String
+  metadata       Json?
+  createdAt      DateTime    @default(now())
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  run          Run?         @relation(fields: [runId], references: [id], onDelete: SetNull)
+
+  @@index([conversationId])
+  @@index([runId])
+}
+
+model AgentEvent {
+  id             String         @id
+  runId          String
+  agentId        String
+  conversationId String
+  type           AgentEventType
+  payload        Json
+  createdAt      DateTime       @default(now())
+
+  run          Run          @relation(fields: [runId], references: [id], onDelete: Cascade)
+  agent        Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([runId])
+  @@index([agentId])
+  @@index([conversationId])
+}
+
+model ConnectedAccount {
+  id          String                 @id
+  provider    ConnectedProvider
+  accountName String?
+  status      ConnectedAccountStatus
+  metadata    Json?
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+}
+
+model UsageLimit {
+  id        String            @id
+  provider  ConnectedProvider
+  kind      UsageKind
+  remaining Float?
+  limit     Float?
+  used      Float?
+  unit      UsageUnit?
+  resetAt   DateTime?
+  status    UsageStatus
+  checkedAt DateTime          @default(now())
+  metadata  Json?
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String
+  updatedAt DateTime @updatedAt
+}

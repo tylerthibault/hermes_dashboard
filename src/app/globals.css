@@ -1,26 +1,181 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #0a1017;
+  --foreground: #e7f3ff;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --color-obsidian: #070c12;
+  --color-graphite-950: #0a121a;
+  --color-graphite-900: #111b25;
+  --color-ink-100: #e7f3ff;
+  --color-ink-300: #afc4d8;
+  --color-ink-400: #89a2bb;
+  --color-ink-500: #60758b;
+  --font-display: var(--font-display);
+  --font-sans: var(--font-sans);
+  --font-mono: var(--font-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), sans-serif;
+}
+
+.bg-grid-overlay {
+  background-image:
+    linear-gradient(to right, rgba(119, 169, 214, 0.08) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(119, 169, 214, 0.08) 1px, transparent 1px);
+  background-size: 42px 42px;
+  animation: gridDrift 42s linear infinite;
+}
+
+.scanline-overlay {
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.022) 0px,
+    rgba(255, 255, 255, 0.022) 1px,
+    transparent 2px,
+    transparent 4px
+  );
+  opacity: 0.1;
+}
+
+.hud-panel {
+  position: relative;
+  overflow: hidden;
+  border-color: rgba(141, 188, 238, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(170, 216, 255, 0.04),
+    0 0 0 1px rgba(17, 29, 44, 0.55),
+    0 24px 48px rgba(2, 9, 18, 0.45);
+}
+
+.hud-panel::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(74, 215, 255, 0.05) 50%, transparent 70%);
+  transform: translateX(0);
+  animation: none;
+  pointer-events: none;
+}
+
+.hud-title {
+  font-family: var(--font-display), sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.status-pulse {
+  box-shadow: 0 0 10px currentColor;
+  animation: statusPulse 1.9s ease-in-out infinite;
+}
+
+.signal-bars {
+  position: relative;
+}
+
+.signal-bars::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to right, transparent, rgba(86, 219, 255, 0.35), transparent);
+  transform: translateX(-100%);
+  animation: none;
+}
+
+.text-glow-cyan {
+  text-shadow: 0 0 14px rgba(74, 215, 255, 0.38);
+}
+
+.rotate-ring-slow {
+  animation: ringSpinSlow 24s linear infinite;
+}
+
+.rotate-ring-reverse {
+  animation: ringSpinReverse 17s linear infinite;
+}
+
+.rotate-ring-pulse {
+  animation: ringPulse 4.5s ease-in-out infinite;
+}
+
+@keyframes gridDrift {
+  0% {
+    background-position: 0 0, 0 0;
+  }
+  100% {
+    background-position: 42px 0, 0 42px;
+  }
+}
+
+@keyframes panelSweep {
+  0% {
+    transform: translateX(-115%);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.7;
+  }
+  100% {
+    transform: translateX(115%);
+    opacity: 0;
+  }
+}
+
+@keyframes statusPulse {
+  0%,
+  100% {
+    opacity: 0.65;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes barsSweep {
+  0% {
+    transform: translateX(-110%);
+  }
+  100% {
+    transform: translateX(110%);
+  }
+}
+
+@keyframes ringSpinSlow {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ringSpinReverse {
+  0% {
+    transform: rotate(360deg);
+  }
+  100% {
+    transform: rotate(0deg);
+  }
+}
+
+@keyframes ringPulse {
+  0%,
+  100% {
+    opacity: 0.55;
+    filter: drop-shadow(0 0 4px rgba(83, 230, 255, 0.25));
+  }
+  50% {
+    opacity: 0.9;
+    filter: drop-shadow(0 0 10px rgba(83, 230, 255, 0.35));
+  }
 }
