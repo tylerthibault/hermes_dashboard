@@ -34,7 +34,7 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 
 export function ConnectorSettingsModal({ open, onClose }: ConnectorSettingsModalProps) {
   const [url, setUrl] = useState("");
-  const [timeoutMs, setTimeoutMs] = useState("30000");
+  const [timeoutMs, setTimeoutMs] = useState("90000");
   const [token, setToken] = useState("");
   const [tokenConfigured, setTokenConfigured] = useState(false);
   const [source, setSource] = useState<ConnectorSettings["source"]>("none");

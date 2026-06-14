@@ -112,6 +112,25 @@ async function safeJson(response: Response): Promise<unknown> {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Hermes gateway API shape:
+//   POST /v1/runs  { input: string }  →  { run_id, status: "started" }
+//   GET  /v1/runs/:run_id             →  { run_id, status, output, ... }
+// We post the message as `input`, then poll until status is completed/failed.
+// ---------------------------------------------------------------------------
+
+type HermesRunStarted = { run_id: string; status: string };
+type HermesRunResult = {
+  run_id: string;
+  status: string;
+  output?: string;
+  last_event?: string;
+};
+
+function sleep(ms: number) {
+  return new Promise<void>((resolve) => setTimeout(resolve, ms));
+}
+
 export async function dispatchRunToConnector(payload: HermesDispatchRequest): Promise<HermesDispatchResponse> {
   const config = await getConnectorConfig();
 
@@ -119,27 +138,86 @@ export async function dispatchRunToConnector(payload: HermesDispatchRequest): Pr
     throw new Error("Hermes connector is not configured.");
   }
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), config.timeoutMs);
+  const headers = buildHeaders(config.token);
 
+  // Step 1: start the run — gateway expects { input: string }
+  const startController = new AbortController();
+  const startTimeout = setTimeout(() => startController.abort(), config.timeoutMs);
+
+  let runId: string;
   try {
-    const response = await fetch(`${config.url}/v1/runs`, {
+    const startResp = await fetch(`${config.url}/v1/runs`, {
       method: "POST",
-      headers: buildHeaders(config.token),
-      body: JSON.stringify(payload),
-      signal: controller.signal,
+      headers,
+      body: JSON.stringify({ input: payload.content }),
+      signal: startController.signal,
     });
 
-    if (!response.ok) {
-      const details = await safeJson(response);
-      throw new Error(`Connector dispatch failed (${response.status}): ${JSON.stringify(details)}`);
+    if (!startResp.ok) {
+      const details = await safeJson(startResp);
+      throw new Error(`Connector dispatch failed (${startResp.status}): ${JSON.stringify(details)}`);
     }
 
-    const json = (await response.json()) as HermesDispatchResponse;
-    return json;
+    const started = (await startResp.json()) as HermesRunStarted;
+    runId = started.run_id;
+    if (!runId) {
+      throw new Error("Connector did not return a run_id");
+    }
   } finally {
-    clearTimeout(timeout);
+    clearTimeout(startTimeout);
   }
+
+  // Step 2: poll GET /v1/runs/:run_id until completed or failed
+  // Total polling window matches the connector timeout (default 30 s).
+  const pollDeadline = Date.now() + Math.max(config.timeoutMs, 60_000);
+  let pollIntervalMs = 800;
+
+  while (Date.now() < pollDeadline) {
+    await sleep(pollIntervalMs);
+    // Back off gently so we don't hammer the gateway
+    pollIntervalMs = Math.min(pollIntervalMs * 1.4, 4000);
+
+    const pollController = new AbortController();
+    const pollTimeout = setTimeout(() => pollController.abort(), 10_000);
+
+    let result: HermesRunResult;
+    try {
+      const pollResp = await fetch(`${config.url}/v1/runs/${runId}`, {
+        method: "GET",
+        headers,
+        signal: pollController.signal,
+      });
+
+      if (!pollResp.ok) {
+        // transient error — keep polling
+        continue;
+      }
+
+      result = (await pollResp.json()) as HermesRunResult;
+    } finally {
+      clearTimeout(pollTimeout);
+    }
+
+    if (result.status === "completed") {
+      return {
+        connectorRunId: runId,
+        accepted: true,
+        assistantMessage: typeof result.output === "string" ? result.output : undefined,
+      };
+    }
+
+    if (result.status === "failed" || result.status === "stopped") {
+      throw new Error(`Hermes run ${result.status}: ${result.last_event ?? "unknown"}`);
+    }
+    // status is "running" or "started" — keep polling
+  }
+
+  // Deadline exceeded — return partial (the run may still complete on the gateway)
+  return {
+    connectorRunId: runId,
+    accepted: true,
+    assistantMessage: undefined,
+  };
 }
 
 export async function sendRunControlToConnector(
