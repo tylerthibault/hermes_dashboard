@@ -149,6 +149,7 @@ export default function DashboardHome() {
               agentEfficiency="98.4%"
               systemUptime="99.99%"
               securityScans="12,450"
+              telemetry={telemetry}
             />
           </div>
         }
