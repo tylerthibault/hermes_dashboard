@@ -1,11 +1,17 @@
+import path from "path";
 import { PrismaClient } from "@prisma/client";
 
 declare global {
   var prisma: PrismaClient | undefined;
 }
 
+// Resolve DATABASE_URL to an ABSOLUTE path. A relative `file:./prisma/dev.db`
+// is re-resolved by Prisma relative to the schema directory (prisma/),
+// producing a stray `prisma/prisma/dev.db`. Anchoring to cwd avoids that and
+// works identically in local dev (repo root) and Docker (`/app`).
 if (!process.env.DATABASE_URL) {
-  process.env.DATABASE_URL = "file:./prisma/dev.db";
+  const dbFile = path.join(process.cwd(), "prisma", "dev.db");
+  process.env.DATABASE_URL = `file:${dbFile}`;
 }
 
 export const prisma =
